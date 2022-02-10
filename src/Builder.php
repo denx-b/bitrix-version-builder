@@ -97,7 +97,7 @@ class Builder extends Repository
     public function getFilesBetweenHash(string $first, string $second = ''): array
     {
         $arFiles = [];
-        $arExcludeMask = ['.last_version', '.versions', 'bitrix-version-builder', '.gitignore'];
+        $arExcludeMask = ['.last_version', '.versions', 'bitrix-version-builder', '.gitignore', 'vendor', 'composer'];
         $argument = $second ? $first . '..' . $second : $first;
         $diff = $this->getDiff($argument);
         foreach($diff->getFiles() as $fileDiff) {

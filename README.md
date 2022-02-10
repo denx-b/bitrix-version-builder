@@ -1,31 +1,34 @@
-## Bitrix Version Builder – 1.2.3.zip
+## Bitrix Version Builder
 
 Библиотека берёт на себя рутинную работу по сборке **обновлений модулей** 1С-Битрикс:
 - автоматическое создание архива новой версии модуля;
 - определение изменённых файлов по истории коммитов в git;
-- название архива автоматически генерируется на основании версиии из /install/version.php;
 - автоматическое декодирование кириллических языковых файлов из UTF-8 в windows-1251;
-- автоматическое описание выпуска (description. ru) из комментария последнего коммита.
-
-В соответствии с [документацией](https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=101&CHAPTER_ID=04793&LESSON_PATH=8781.4793) по разработке модулей 1С-Битрикс, автоматическое декодирование файлов в windows-1251 на данный момент является обязательным условием, что осложняет разработку и увеличивает кол-во ручных действий по конвертации файлов.
-
->**Внимание!** Модуль необходимо создавать в кодировке windows-1251, при установке его на сайт с кодировкой UTF-8 происходит автоматическая перекодировка.
-
-Но используя данный сборщик, вы можете полностью держать свой проект модуля в привычной и удобной UTF-8 кодировке, что упрощает тестирование и разработку, и снимает необходимость ручного декодирования перед каждой публикацией нового релиза.
+- автоматическое описание обновления (description. ru) из комментария последнего коммита.
 
 ## Установка и использование
-В корне модуля (там где у вас /install, /lang, /lib, /include.php, и т.д.) выполните команду:
+В корне модуля (там где у вас /install, /lang, /include.php, ...) выполните команду:
 ```sh
 composer require denx-b/bitrix-version-builder --dev
 ```
-Появится директория /vendor, в которой находится сборщик, его надо сделать исполняемым и вызвать для генерации архива версии:
-```sh
-chmod +x ./vendor/bin/bversionbuilder
-```
 
-Теперь для создания архива достаточно вызвать команду:
+Теперь для создания архива достаточно вызвать:
 ```sh
 ./vendor/bin/bversionbuilder
+```
+
+И в вашей структуре появится директория /.versions, с архивами обновлений:
+```php
+/*
+aspro.max/
+  ├─ .versions/
+  |   ├─ 1.1.3.zip
+  |   ├─ 1.1.4.zip
+  ├─ install/
+  ├─ lang/
+  ├─ vendor/
+  └─ include.php
+*/
 ```
 
 ### Как это работает?
@@ -36,30 +39,9 @@ chmod +x ./vendor/bin/bversionbuilder
     <?php
     $arModuleVersion = array(  
         "VERSION" => "1.1.4",  
-        "VERSION_DATE" => "2022-01-25 19:00:00"  
+        "VERSION_DATE" => "2019-12-04 18:52:00"  
     );
 В истории коммитов git обязательно должны быть теги, в архив попадут все изменённые файлы именно между последним и предыдущим тегами.
-![](https://dbogdanoff.ru/upload/bitrix-version-builder.png)
+![](https://dbogdanoff.ru/upload/bitrix-version-builder-1010.jpeg)
 
 Развивайте ваш модуль, комитьте, фокусируйтесь на задаче, а рутинную работу возложите на сборщик! Как будете готовы к публикации новой версии, сново просто выполните команду `./vendor/bin/bversionbuilder`
-
-Стоит иметь ввиду одну особенность, файлы в сборку попадают на основании истории коммитов, но те файлы, которые сейчас лежать в рабочей директории.
-
-## Installation
-Bitrix Version Builder is installed via [Composer](https://getcomposer.org/).
-
-To [add a dependency](https://getcomposer.org/doc/04-schema.md#package-links) to bitrix-version-builder in your project, either.
-
-Run the following to use the latest stable version
-```sh
-composer require denx-b/bitrix-version-builder --dev
-```
-
-You can of course also manually edit your composer.json file
-```json
-{
-    "require-dev": {
-        "denx-b/bitrix-version-builder": "1.0.*"
-    }
-}
-```

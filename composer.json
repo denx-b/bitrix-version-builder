@@ -1,7 +1,7 @@
 {
     "name": "denx-b/bitrix-version-builder",
     "type": "library",
-    "description": "Library for creating archives of new versions of 1С-Bitrix modules",
+    "description": "Генерация архивов обновлений модулей 1С-Битрикс",
     "license": "MIT",
     "require": {
         "php": "^7.0",
