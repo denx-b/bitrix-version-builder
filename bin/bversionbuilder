@@ -5,8 +5,8 @@ include $_composer_autoload_path ?? __DIR__ . '/../vendor/autoload.php';
 
 try {
     $builder = new \VersionBuilder\Builder();
-    $hashes = $builder->getHashes();
-    $files = $builder->getFilesBetweenHash($hashes['newer'], $hashes['older']);
+    $fileDetector = new \VersionBuilder\FileDetector($builder);
+    $files = $fileDetector->getFiles();
 } catch (\Exception $e) {
     exit($e->getMessage() . PHP_EOL);
 }
@@ -43,7 +43,7 @@ foreach ($files as $file) {
     file_put_contents($destFile, $content);
     // Добавляем файлы в архив
     if ($zip->addFile($destFile, $builder->getModuleVersion() . '/' . $file['path'])) {
-        echo 'Version Builder: Added ' . $file['path'] . PHP_EOL;
+        echo 'Version Builder: added file ' . $file['path'] . PHP_EOL;
     }
 }
 

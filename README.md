@@ -22,8 +22,9 @@ composer require denx-b/bitrix-version-builder --dev
 /*
 aspro.max/
   ├─ .versions/
+  |   ├─ .last_version.zip
   |   ├─ 1.1.3.zip
-  |   ├─ 1.1.4.zip
+  |   └─ 1.1.4.zip
   ├─ install/
   ├─ lang/
   ├─ vendor/
@@ -41,7 +42,8 @@ aspro.max/
         "VERSION" => "1.1.4",  
         "VERSION_DATE" => "2019-12-04 18:52:00"  
     );
-В истории коммитов git обязательно должны быть теги, в архив попадут все изменённые файлы именно между последним и предыдущим тегами.
+В архив обновлений попадают файлы менжду последним и предыдущим тегами или вообще все файлы, если тегов ещё нет. Во втором случае имя архива будет `.last_verion.zip`. [Подробнее](https://github.com/denx-b/bitrix-version-builder/issues/4) о попадании файлов в архив.
+
 ![](https://dbogdanoff.ru/upload/bitrix-version-builder-1010.jpeg)
 
 Развивайте ваш модуль, комитьте, фокусируйтесь на задаче, а рутинную работу возложите на сборщик! Как будете готовы к публикации новой версии, сново просто выполните команду `./vendor/bin/bversionbuilder`

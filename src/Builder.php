@@ -7,7 +7,6 @@ use Gitonomy\Git\Commit;
 use Gitonomy\Git\Repository;
 use Gitonomy\Git\ReferenceBag;
 use Gitonomy\Git\Reference\Tag;
-use Gitonomy\Git\Diff\File;
 
 class Builder extends Repository
 {
@@ -22,6 +21,9 @@ class Builder extends Repository
 
     /** @var string путь до директории с архивами обновлений */
     protected $versionsDirectoryPath = '';
+
+    /** @var int кол-во тегов */
+    protected $countTags = 0;
 
     /**
      * @throws Exception
@@ -83,10 +85,12 @@ class Builder extends Repository
         $olderTagHash = '';
         if (count($arTags) === 1) {
             $newerTagHash = array_values($arTags)[0];
+            $this->countTags = 1;
         } elseif (count($arTags) > 1) {
             krsort($arTags);
             $newerTagHash = array_shift($arTags);
             $olderTagHash = array_shift($arTags);
+            $this->countTags = 2;
         }
 
         if ($newerTagHash) {
@@ -137,84 +141,10 @@ class Builder extends Repository
     }
 
     /**
-     * Возвращает список изменённых файлов между указанными хешами
+     * Метод создаёт корневую директорию для архивов версий
      *
-     * @param string $newer
-     * @param string $older
-     * @return array
-     */
-    public function getFilesBetweenHash(string $newer, string $older = ''): array
-    {
-        if ($this->moduleVersion === '.last_version') {
-            return $this->getFilesFromDir($newer);
-        }
-        return $this->getFilesFromGitonomy($newer, $older);
-    }
-
-    protected function getFilesFromGitonomy(string $newer, string $older = ''): array
-    {
-        $hasVersion = false;
-        $arExcludeMask = $this->getExcludeMask();
-
-        /** @var File[] $files */
-        $argument = $older ? $older . '..' . $newer : $newer;
-        $diff = $this->getDiff($argument);
-        $files = $diff->getFiles();
-
-        $arFiles = [];
-        foreach ($files as $fileDiff) {
-            if (Helper::strposa($fileDiff->getName(), $arExcludeMask) !== false) {
-                continue;
-            }
-            $arFiles[] = [
-                'path' => $fileDiff->getName(),
-                'content' => $fileDiff->getNewBlob()->getContent()
-            ];
-
-            if (strpos($fileDiff->getName(), 'install/version.php') !== false) {
-                $hasVersion = true;
-            }
-        }
-
-        /*
-         * Файл install/version.php обязательный для обновлений
-         * Если по какой-либо причине он не попал в diff, включаем его принудительно
-         */
-        if ($hasVersion === false) {
-            $arFiles[] = [
-                'path' => 'install/version.php',
-                'content' => $this->run('show', [$newer . ':install/version.php'])
-            ];
-        }
-
-        return $arFiles;
-    }
-
-    protected function getFilesFromDir(string $hash): array
-    {
-        $arExcludeMask = $this->getExcludeMask();
-
-        $revision = $this->getRevision($hash)->getRepository();
-        $files = preg_split("/\r\n|\n|\r/", $revision->run('ls-files'));
-
-        $arFiles = [];
-        foreach ((array)$files as $file) {
-            if (Helper::strposa($file, $arExcludeMask) !== false || !$file) {
-                continue;
-            }
-            $arFiles[] = [
-                'path' => $file,
-                'content' => file_get_contents($this->getPath() . '/' . $file)
-            ];
-        }
-
-        return $arFiles;
-    }
-
-    /**
      * @return void
      * @throws Exception
-     * Метод создаёт корневую директорию для архивов версий
      */
     protected function createVersionsDirectory()
     {
@@ -247,25 +177,34 @@ class Builder extends Repository
      */
     protected function setModuleVersion(string $hash)
     {
-        try {
-            $content = $this->run('show', [$hash . ':install/version.php']);
-        } catch (Exception $e) {
-            throw new Exception('Version Builder: Error revision ' . $hash . ' does\'t have file install/version.php' . PHP_EOL);
-        }
-
+        $content = $this->show($hash, 'install/version.php');
         $destPath = $this->getPathDir() . '/version.php';
         if (!file_put_contents($destPath, $content)) {
             throw new Exception('Version Builder: Failed to create file ' . $destPath . PHP_EOL);
         }
 
         require_once $destPath;
-
         if (!isset($arModuleVersion['VERSION']) || !$arModuleVersion['VERSION']) {
             throw new Exception('Version Builder: Error install/version.php file does\'t have value $arModuleVersion["VERSION"]' . PHP_EOL);
         }
 
         $this->moduleVersion = $arModuleVersion['VERSION'];
         unlink($destPath);
+    }
+
+    /**
+     * @param string $hash
+     * @param string $file
+     * @return string
+     * @throws Exception
+     */
+    public function show(string $hash, string $file): string
+    {
+        try {
+            return $this->run('show', [$hash . ':' . $file]);
+        } catch (Exception $e) {
+            throw new Exception('Version Builder: Failed to get file ' . $file . ' value');
+        }
     }
 
     /**
@@ -322,5 +261,13 @@ class Builder extends Repository
     public function getExcludeMask(): array
     {
         return ['.last_version', '.versions', 'bitrix-version-builder', '.gitignore', 'vendor', 'composer'];
+    }
+
+    /**
+     * @return int
+     */
+    public function getCountTags(): int
+    {
+        return $this->countTags;
     }
 }
