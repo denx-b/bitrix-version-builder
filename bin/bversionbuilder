@@ -9,7 +9,7 @@ if (!count($hashes = $builder->getHashesBetweenLastTags())) {
     exit('Version Builder Warning: No tags to create build version' . PHP_EOL);
 }
 
-if (!count($files = $builder->getFilesBetweenHash($hashes['prev'], $hashes['curr']))) {
+if (!count($files = $builder->getFilesBetweenHash($hashes['newer'], $hashes['older']))) {
     exit('Version Builder Warning: No changed files to create build version' . PHP_EOL);
 }
 

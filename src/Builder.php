@@ -54,13 +54,13 @@ class Builder extends Repository
         }
 
         krsort($arHashes);
-        $curr = array_shift($arHashes);
-        $prev = array_shift($arHashes);
-        $this->setDescriptionUpdate($curr);
+        $newer = array_shift($arHashes);
+        $older = array_shift($arHashes);
+        $this->setDescriptionUpdate($newer);
 
         return [
-            'curr' => $curr,
-            'prev' => $prev
+            'newer' => $newer,
+            'older' => $older
         ];
     }
 
@@ -79,26 +79,17 @@ class Builder extends Repository
     }
 
     /**
-     * @return string
-     */
-    public function getDescriptionUpdate(): string
-    {
-        return $this->descriptionUpdate;
-    }
-
-    /**
      * Возвращает список изменённых файлов между указанными хешами
-     * Первым должен быть хеш более старого коммита
      *
-     * @param string $first
-     * @param string $second
+     * @param string $newer
+     * @param string $older
      * @return array
      */
-    public function getFilesBetweenHash(string $first, string $second = ''): array
+    public function getFilesBetweenHash(string $newer, string $older = ''): array
     {
         $arFiles = [];
         $arExcludeMask = ['.last_version', '.versions', 'bitrix-version-builder', '.gitignore', 'vendor', 'composer'];
-        $argument = $second ? $first . '..' . $second : $first;
+        $argument = $older ? $older . '..' . $newer : $newer;
         $diff = $this->getDiff($argument);
         foreach ($diff->getFiles() as $fileDiff) {
             /** @var $fileDiff File */
@@ -111,6 +102,14 @@ class Builder extends Repository
             ];
         }
         return $arFiles;
+    }
+
+    /**
+     * @return string
+     */
+    public function getDescriptionUpdate(): string
+    {
+        return $this->descriptionUpdate;
     }
 
     /**
