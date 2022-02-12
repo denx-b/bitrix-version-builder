@@ -100,12 +100,15 @@ class Builder extends Repository
         $arExcludeMask = ['.last_version', '.versions', 'bitrix-version-builder', '.gitignore', 'vendor', 'composer'];
         $argument = $second ? $first . '..' . $second : $first;
         $diff = $this->getDiff($argument);
-        foreach($diff->getFiles() as $fileDiff) {
-            /** @var $fileDiff File  */
+        foreach ($diff->getFiles() as $fileDiff) {
+            /** @var $fileDiff File */
             if ($this->strposa($fileDiff->getName(), $arExcludeMask) !== false) {
                 continue;
             }
-            $arFiles[] = $fileDiff->getName();
+            $arFiles[] = [
+                'path' => $fileDiff->getName(),
+                'content' => $fileDiff->getNewBlob()->getContent()
+            ];
         }
         return $arFiles;
     }

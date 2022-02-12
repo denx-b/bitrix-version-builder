@@ -38,23 +38,21 @@ if ($zip->open($archiveName, ZipArchive::CREATE) !== true) {
 
 foreach ($files as $file) {
     // Создание директории версии
-    $destDir = $builder->getPath() . '/.versions/' . $version . '/' . dirname($file);
-    $destFile = $builder->getPath() . '/.versions/' . $version . '/' . $file;
+    $destDir = $builder->getPath() . '/.versions/' . $version . '/' . dirname($file['path']);
+    $destFile = $builder->getPath() . '/.versions/' . $version . '/' . $file['path'];
     if (!file_exists($destDir)) {
         if (!mkdir($destDir, 0755, true)) {
-            exit('Version Builder Error: Failed to create directory ' . dirname($file) . PHP_EOL);
+            exit('Version Builder Error: Failed to create directory ' . dirname($file['path']) . PHP_EOL);
         }
     }
     // Конвертация в cp1251
-    if (stripos($file, 'lang/ru') !== false) {
-        $content = file_get_contents($builder->getPath() . '/' . $file);
-        $content = iconv('UTF-8', 'CP1251', $content);
-        file_put_contents($destFile, $content);
+    if (stripos($file['path'], 'lang/ru') !== false) {
+        file_put_contents($destFile, iconv('UTF-8', 'CP1251', $file['content']));
     } else {
-        copy($builder->getPath() . '/' . $file, $destFile);
+        copy($builder->getPath() . '/' . $file['path'], $destFile);
     }
     // Добавление файла в архив
-    $zip->addFile($destFile, $version . '/' . $file);
+    $zip->addFile($destFile, $version . '/' . $file['path']);
 }
 
 $description = $builder->getDescriptionUpdate();
