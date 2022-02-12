@@ -131,9 +131,13 @@ class Builder extends Repository
      * @param $path
      * @return void
      */
-    public function removeDirectory($path) {
-        $files = glob($path . '/*');
+    public function removeDirectory($path)
+    {
+        $files = glob($path . '/' . '{,.}[!.,!..]*', GLOB_BRACE);
         foreach ($files as $file) {
+            if (in_array(basename($file), ['.', '..'])) {
+                continue;
+            }
             is_dir($file) ? $this->removeDirectory($file) : unlink($file);
         }
         rmdir($path);
