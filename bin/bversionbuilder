@@ -3,30 +3,22 @@
 
 include $_composer_autoload_path ?? __DIR__ . '/../vendor/autoload.php';
 
-$builder = new \VersionBuilder\Builder();
-
-if (!count($hashes = $builder->getHashesBetweenLastTags())) {
-    exit('Version Builder Warning: No tags to create build version' . PHP_EOL);
+try {
+    $builder = new \VersionBuilder\Builder();
+    $hashes = $builder->getHashes();
+    $files = $builder->getFilesBetweenHash($hashes['newer'], $hashes['older']);
+} catch (\Exception $e) {
+    exit($e->getMessage() . PHP_EOL);
 }
 
-if (!count($files = $builder->getFilesBetweenHash($hashes['newer'], $hashes['older']))) {
-    exit('Version Builder Warning: No changed files to create build version' . PHP_EOL);
-}
-
-$version = $builder->getCurrentModuleVersion();
-$directory = $builder->getPath() . '/.versions/' . $version;
-
-if (empty($version)) {
-    exit('Version Builder Error: Module version not specified in /install/version.php' . PHP_EOL);
-}
-
+$directory = $builder->getPathDir() . '/' . $builder->getModuleVersion();
 if (!file_exists($directory)) {
     if (!mkdir($directory, 0755, true)) {
-        exit('Version Builder Error: Failed to create directory' . PHP_EOL);
+        exit('Version Builder: Failed to create directory' . PHP_EOL);
     }
 }
 
-$archiveName = $builder->getPath() . '/.versions/' . $version . '.zip';
+$archiveName = $builder->getPathDir() . '/' . $builder->getArchiveName();
 if (file_exists($archiveName)) {
     unlink($archiveName);
 }
@@ -38,11 +30,11 @@ if ($zip->open($archiveName, ZipArchive::CREATE) !== true) {
 
 foreach ($files as $file) {
     // Создание директории версии
-    $destDir = $builder->getPath() . '/.versions/' . $version . '/' . dirname($file['path']);
-    $destFile = $builder->getPath() . '/.versions/' . $version . '/' . $file['path'];
+    $destDir = $directory . '/' . dirname($file['path']);
+    $destFile = $directory . '/' . $file['path'];
     if (!file_exists($destDir)) {
         if (!mkdir($destDir, 0755, true)) {
-            exit('Version Builder Error: Failed to create directory ' . dirname($file['path']) . PHP_EOL);
+            exit('Version Builder: Failed to create directory ' . dirname($file['path']) . PHP_EOL);
         }
     }
     // Конвертация в cp1251
@@ -52,14 +44,18 @@ foreach ($files as $file) {
         copy($builder->getPath() . '/' . $file['path'], $destFile);
     }
     // Добавление файла в архив
-    $zip->addFile($destFile, $version . '/' . $file['path']);
+    if ($zip->addFile($destFile, $builder->getModuleVersion() . '/' . $file['path'])) {
+        echo 'Version Builder: Added ' . $file['path'] . PHP_EOL;
+    }
 }
 
 $description = $builder->getDescriptionUpdate();
-$zip->addFromString($version . '/description.ru', iconv('UTF-8', 'CP1251', $description));
+$zip->addFromString($builder->getModuleVersion() . '/description.ru', iconv('UTF-8', 'CP1251', $description));
 if (!$zip->close()) {
-    exit('Version Builder Error: Build version NOT created' . PHP_EOL);
+    exit('Version Builder: Build version NOT created' . PHP_EOL);
+} else {
+    echo 'Version Builder: Archive created ' . $builder->getArchiveName() . PHP_EOL;
 }
 
-$builder->removeDirectory($directory);
-exit('Version Builder: Build version created successfully ' . PHP_EOL);
+\VersionBuilder\Helper::removeDirectory($directory);
+echo 'Version Builder: Build version created successfully ' . PHP_EOL;
