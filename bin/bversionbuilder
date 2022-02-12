@@ -37,13 +37,11 @@ foreach ($files as $file) {
             exit('Version Builder: Failed to create directory ' . dirname($file['path']) . PHP_EOL);
         }
     }
-    // Конвертация в cp1251
-    if (stripos($file['path'], 'lang/ru') !== false) {
-        file_put_contents($destFile, iconv('UTF-8', 'CP1251', $file['content']));
-    } else {
-        copy($builder->getPath() . '/' . $file['path'], $destFile);
-    }
-    // Добавление файла в архив
+    // Копируем файлы
+    $needConvert = strpos($file['path'], 'lang/ru') !== false;
+    $content = $needConvert ? iconv('UTF-8', 'CP1251', $file['content']) : $file['content'];
+    file_put_contents($destFile, $content);
+    // Добавляем файлы в архив
     if ($zip->addFile($destFile, $builder->getModuleVersion() . '/' . $file['path'])) {
         echo 'Version Builder: Added ' . $file['path'] . PHP_EOL;
     }

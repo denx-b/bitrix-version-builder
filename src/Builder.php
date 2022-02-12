@@ -15,7 +15,7 @@ class Builder extends Repository
     protected $descriptionUpdate = '';
 
     /** @var string версия обновления */
-    protected $moduleVersion = '0.0.0';
+    protected $moduleVersion = '.last_version';
 
     /** @var string имя архива */
     protected $archiveName = '.last_version.zip';
@@ -145,8 +145,16 @@ class Builder extends Repository
      */
     public function getFilesBetweenHash(string $newer, string $older = ''): array
     {
+        if ($this->moduleVersion === '.last_version') {
+            return $this->getFilesFromDir($newer);
+        }
+        return $this->getFilesFromGitonomy($newer, $older);
+    }
+
+    protected function getFilesFromGitonomy(string $newer, string $older = ''): array
+    {
         $hasVersion = false;
-        $arExcludeMask = ['.last_version', '.versions', 'bitrix-version-builder', '.gitignore', 'vendor', 'composer'];
+        $arExcludeMask = $this->getExcludeMask();
 
         /** @var File[] $files */
         $argument = $older ? $older . '..' . $newer : $newer;
@@ -158,14 +166,12 @@ class Builder extends Repository
             if (Helper::strposa($fileDiff->getName(), $arExcludeMask) !== false) {
                 continue;
             }
-            $path = $fileDiff->getName();
-            $content = strpos('lang/ru', $path) !== false ? $fileDiff->getNewBlob()->getContent() : '';
             $arFiles[] = [
-                'path' => $path,
-                'content' => $content
+                'path' => $fileDiff->getName(),
+                'content' => $fileDiff->getNewBlob()->getContent()
             ];
 
-            if (strpos($path, 'install/version.php') !== false) {
+            if (strpos($fileDiff->getName(), 'install/version.php') !== false) {
                 $hasVersion = true;
             }
         }
@@ -178,6 +184,27 @@ class Builder extends Repository
             $arFiles[] = [
                 'path' => 'install/version.php',
                 'content' => $this->run('show', [$newer . ':install/version.php'])
+            ];
+        }
+
+        return $arFiles;
+    }
+
+    protected function getFilesFromDir(string $hash): array
+    {
+        $arExcludeMask = $this->getExcludeMask();
+
+        $revision = $this->getRevision($hash)->getRepository();
+        $files = preg_split("/\r\n|\n|\r/", $revision->run('ls-files'));
+
+        $arFiles = [];
+        foreach ((array)$files as $file) {
+            if (Helper::strposa($file, $arExcludeMask) !== false || !$file) {
+                continue;
+            }
+            $arFiles[] = [
+                'path' => $file,
+                'content' => file_get_contents($this->getPath() . '/' . $file)
             ];
         }
 
@@ -287,5 +314,13 @@ class Builder extends Repository
     public function getPathDir(): string
     {
         return $this->versionsDirectoryPath;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getExcludeMask(): array
+    {
+        return ['.last_version', '.versions', 'bitrix-version-builder', '.gitignore', 'vendor', 'composer'];
     }
 }
