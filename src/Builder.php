@@ -2,80 +2,244 @@
 
 namespace VersionBuilder;
 
+use Exception;
 use Gitonomy\Git\Commit;
 use Gitonomy\Git\Repository;
 use Gitonomy\Git\ReferenceBag;
 use Gitonomy\Git\Reference\Tag;
-use Gitonomy\Git\Diff\File;
 
 class Builder extends Repository
 {
-    /** @var string */
+    /** @var string описание обновления */
     protected $descriptionUpdate = '';
 
+    /** @var string версия обновления */
+    protected $moduleVersion = '.last_version';
+
+    /** @var string имя архива */
+    protected $archiveName = '.last_version.zip';
+
+    /** @var string путь до директории с архивами обновлений */
+    protected $versionsDirectoryPath = '';
+
+    /** @var int кол-во тегов */
+    protected $countTags = 0;
+
+    /**
+     * @throws Exception
+     */
     public function __construct()
     {
-        $dir = $this->findModulePath(__DIR__);
-        parent::__construct($dir);
+        // Поиск пути до корня модуля и вызов родительского конструктора
+        parent::__construct($this->findModuleDir(__DIR__));
+        // Создаём директорию куда будут складываться архивы обновлений
+        $this->createVersionsDirectory();
     }
 
     /**
+     * Метод "взбирается" вверх по директориям и ищет корень модуля
+     * За корень модуля считаем наличие install/version.php
+     *
      * @param $baseDir
      * @param int $i
      * @return string
+     * @throws Exception
      */
-    protected function findModulePath($baseDir, int $i = 0): string
+    protected function findModuleDir($baseDir, int $i = 0): string
     {
         if (++$i > 20) {
-            exit('Version Builder Error: Bitrix module not found');
+            throw new Exception('Version Builder: Error bitrix module not found');
         }
         $path = $baseDir . '/..';
         if (file_exists($path . '/install/version.php')) {
-            return realpath($path);
+            $dir = realpath($path);
+            if (!file_exists($dir . '/.git')) {
+                throw new Exception('Version Builder: Error git repository not found ' . $dir);
+            }
+            return $dir;
         }
-        return $this->findModulePath($path);
+        return $this->findModuleDir($path);
     }
 
     /**
-     * Возвращает два промежуточных хеша самого нового тега и предыдущего по истории
+     * Возвращает два промежуточных хеша, чтобы в дальнейшем межжду ними по diff можно было вытащить изменённые файлы
+     * Все возможные варианты поиска хешей описаны в issue:
+     *     https://github.com/denx-b/bitrix-version-builder/issues/4#issuecomment-1037250826
+     *
+     * Также в методе определяется название архива обновления, вариантов два: .last_version.zip или 0.0.0.zip
+     * Если в истории git есть хотябы один тег, архив именуется 0.0.0.zip, если тегов нет, то .last_version.zip
+     *
      * @return array
+     * @throws Exception
      */
-    public function getHashesBetweenLastTags(): array
+    public function getHashes(): array
     {
-        $arHashes = [];
+        /** @var String[] $arTags */
+        $arTags = [];
         $refBag = new ReferenceBag($this);
         foreach ($refBag->getTags() as $tag) {
             /** @var Tag $tag */
-            $arHashes[$tag->getTaggerDate()->format('U')] = $tag->getCommit()->getFixedShortHash();
+            $u = $tag->getLog()->getCommits()[0]->getAuthorDate()->format('U');
+            $arTags[$u] = $tag->getCommit()->getFixedShortHash();
         }
 
-        if (count($arHashes) < 2) {
-            return [];
+        krsort($arTags);
+
+        $newerTagHash = $olderTagHash = '';
+        if (count($arTags) === 1) {
+            $newerTagHash = array_values($arTags)[0];
+            $this->countTags = 1;
+        } elseif (count($arTags) > 1) {
+            $newerTagHash = array_shift($arTags);
+            $olderTagHash = array_shift($arTags);
+            $this->countTags = 2;
         }
 
-        krsort($arHashes);
-        $curr = array_shift($arHashes);
-        $prev = array_shift($arHashes);
-        $this->setDescriptionUpdate($curr);
+        if ($olderTagHash) {
+            $this->setModuleVersion($newerTagHash);
+            $this->setArchiveNameByVersion();
+        }
+        
+        /** @var Commit[] $commits */
+        $log = $this->getLog();
+        $commits = $log->getCommits();
+        if (!$log->count()) {
+            throw new Exception('Version Builder: Error there are no commits');
+        } else {
+            if ($log->count() === 1) {
+                return [
+                    'newer' => $commits[0]->getFixedShortHash(),
+                    'older' => ''
+                ];
+            }
+        }
+
+        $newer = $newerTagHash ?: $commits[0]->getFixedShortHash();
+
+        $prev = $older = $found = '';
+        foreach ($commits as $commit) {
+            /*
+             * Этим условием происходит выбор нужной ревизии
+             * Если выбирать ревизию через Repository::getRevision(), то теряются комиты исправленные через --amend
+             */
+            if ($commit->getFixedShortHash() === $newerTagHash) {
+                $found = true;
+            }
+            if ($newerTagHash && $commit->getFixedShortHash() !== $newerTagHash && $found !== true) {
+                continue;
+            }
+
+            /*
+             * Пустым значение $olderTagHash мы делаем вывод, что нет второго тега
+             * Отсюда принимается, решение, что самый older у нас – это последний комит в истории
+             */
+            if (!$olderTagHash) {
+                $older = $commit->getFixedShortHash();
+                continue;
+            }
+
+            /*
+             * Второй тег есть и older'ом должен выступить комит следующий за тегом
+             * Поэтому как только мы дошли до тега, то значением older выступает значение prev предыдущей итерации цикла
+             * И сразу можно прерывать цикл break;
+             */
+            if ($commit->getFixedShortHash() === $olderTagHash) {
+                $older = $prev;
+                break;
+            }
+
+            $prev = $commit->getFixedShortHash();
+        }
+
+        $this->setDescriptionUpdate();
 
         return [
-            'curr' => $curr,
-            'prev' => $prev
+            'newer' => $newer,
+            'older' => $older
         ];
     }
 
     /**
-     * Установка описания изменений версии
+     * Метод создаёт корневую директорию для архивов версий
      *
-     * @param string $hash
      * @return void
+     * @throws Exception
      */
-    protected function setDescriptionUpdate(string $hash)
+    protected function createVersionsDirectory()
+    {
+        $this->setVersionsDirectoryPath();
+        $directory = $this->getPathDir();
+        if (!file_exists($directory)) {
+            if (!mkdir($directory, 0755, true)) {
+                throw new Exception('Version Builder: Failed to create /.versions/ directory, check access to module directory' . PHP_EOL);
+            }
+        }
+    }
+
+    /**
+     * Установка описания изменений версии
+     */
+    protected function setDescriptionUpdate()
     {
         $log = $this->getLog(null, null, 0, 1);
         /** @var Commit $commit */
         $commit = $log->getCommits()[0];
         $this->descriptionUpdate = $commit->getSubjectMessage();
+    }
+
+    /**
+     * Установка версии на основании конкретной ревизии из файла install/version.php
+     *
+     * @param string $hash
+     * @return void
+     * @throws Exception
+     */
+    protected function setModuleVersion(string $hash)
+    {
+        $content = $this->show($hash, 'install/version.php');
+        $destPath = $this->getPathDir() . '/version.php';
+        if (!file_put_contents($destPath, $content)) {
+            throw new Exception('Version Builder: Failed to create file ' . $destPath . PHP_EOL);
+        }
+
+        require_once $destPath;
+        if (!isset($arModuleVersion['VERSION']) || !$arModuleVersion['VERSION']) {
+            throw new Exception('Version Builder: Error install/version.php file does\'t have value $arModuleVersion["VERSION"]' . PHP_EOL);
+        }
+
+        $this->moduleVersion = $arModuleVersion['VERSION'];
+        unlink($destPath);
+    }
+
+    /**
+     * @param string $hash
+     * @param string $file
+     * @return string
+     * @throws Exception
+     */
+    public function show(string $hash, string $file): string
+    {
+        try {
+            return $this->run('show', [$hash . ':' . $file]);
+        } catch (Exception $e) {
+            throw new Exception('Version Builder: Failed to get file ' . $file . ' value');
+        }
+    }
+
+    /**
+     * Установка имени архива по номеу версии
+     */
+    protected function setArchiveNameByVersion()
+    {
+        $this->archiveName = $this->getModuleVersion() . '.zip';
+    }
+
+    /**
+     * Установка пути директории хранения версий
+     */
+    protected function setVersionsDirectoryPath()
+    {
+        $this->versionsDirectoryPath = $this->getPath() . '/.versions';
     }
 
     /**
@@ -87,83 +251,42 @@ class Builder extends Repository
     }
 
     /**
-     * Возвращает список изменённых файлов между указанными хешами
-     * Первым должен быть хеш более старого коммита
-     *
-     * @param string $first
-     * @param string $second
-     * @return array
-     */
-    public function getFilesBetweenHash(string $first, string $second = ''): array
-    {
-        $arFiles = [];
-        $arExcludeMask = ['.last_version', '.versions', 'bitrix-version-builder', '.gitignore', 'vendor', 'composer'];
-        $argument = $second ? $first . '..' . $second : $first;
-        $diff = $this->getDiff($argument);
-        foreach ($diff->getFiles() as $fileDiff) {
-            /** @var $fileDiff File */
-            if ($this->strposa($fileDiff->getName(), $arExcludeMask) !== false) {
-                continue;
-            }
-            $arFiles[] = [
-                'path' => $fileDiff->getName(),
-                'content' => $fileDiff->getNewBlob()->getContent()
-            ];
-        }
-        return $arFiles;
-    }
-
-    /**
-     * Возвращает текущую версию модуля
      * @return string
      */
-    public function getCurrentModuleVersion(): string
+    public function getModuleVersion(): string
     {
-        $version = '';
-        $versionFile = $this->getPath() . '/install/version.php';
-        if (file_exists($versionFile)) {
-            require_once $versionFile;
-            if (isset($arModuleVersion)) {
-                $version = $arModuleVersion['VERSION'];
-            }
-        }
-        return $version;
+        return $this->moduleVersion;
     }
 
     /**
-     * @param $path
-     * @return void
+     * @return string
      */
-    public function removeDirectory($path)
+    public function getArchiveName(): string
     {
-        $files = glob($path . '/' . '{,.}[!.,!..]*', GLOB_BRACE);
-        foreach ($files as $file) {
-            if (in_array(basename($file), ['.', '..'])) {
-                continue;
-            }
-            is_dir($file) ? $this->removeDirectory($file) : unlink($file);
-        }
-        rmdir($path);
+        return $this->archiveName;
     }
 
     /**
-     * @param $haystack
-     * @param array $needles
-     * @param int $offset
-     * @return false|mixed
+     * @return string
      */
-    protected function strposa($haystack, array $needles = [], int $offset = 0)
+    public function getPathDir(): string
     {
-        $chr = [];
-        foreach ($needles as $needle) {
-            $res = strpos($haystack, $needle, $offset);
-            if ($res !== false) {
-                $chr[$needle] = $res;
-            }
-        }
-        if (empty($chr)) {
-            return false;
-        }
-        return min($chr);
+        return $this->versionsDirectoryPath;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getExcludeMask(): array
+    {
+        return ['.last_version', '.versions', 'bitrix-version-builder', '.gitignore', 'vendor', 'composer'];
+    }
+
+    /**
+     * @return int
+     */
+    public function getCountTags(): int
+    {
+        return $this->countTags;
     }
 }
