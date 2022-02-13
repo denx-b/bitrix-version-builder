@@ -30,6 +30,10 @@ class FileDetector
         $version = $this->repository->getModuleVersion();
         $countTags = $this->repository->getCountTags();
 
+        /*
+         * Даже если есть один тег, то нам всё ещё непонятно, каким брать предыдущий хеш
+         * Поэтому с одним тегом берём все файлы
+         */
         if ($version === '.last_version' || $countTags < 2) {
             return $this->getAllFiles($hashes['newer']);
         }

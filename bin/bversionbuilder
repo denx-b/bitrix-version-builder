@@ -3,6 +3,8 @@
 
 include $_composer_autoload_path ?? __DIR__ . '/../vendor/autoload.php';
 
+echo '--- start ---' . PHP_EOL;
+
 try {
     $builder = new \VersionBuilder\Builder();
     $fileDetector = new \VersionBuilder\FileDetector($builder);
@@ -57,3 +59,6 @@ if (!$zip->close()) {
 
 \VersionBuilder\Helper::removeDirectory($directory);
 echo 'Version Builder: Build version created successfully ' . PHP_EOL;
+echo 'Version Builder: Time ' . round(microtime(true) - $_SERVER['REQUEST_TIME_FLOAT'], 6) . ' sec.' . PHP_EOL;
+
+echo '---- end ----' . PHP_EOL . PHP_EOL;

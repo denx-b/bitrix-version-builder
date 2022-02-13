@@ -93,10 +93,13 @@ class Builder extends Repository
             $this->countTags = 2;
         }
 
-        if ($newerTagHash) {
-            $log = $this->getRevision($newerTagHash)->getLog();
+        if ($olderTagHash) {
             $this->setModuleVersion($newerTagHash);
             $this->setArchiveNameByVersion();
+        }
+
+        if ($newerTagHash) {
+            $log = $this->getRevision($newerTagHash)->getLog();
         } else {
             $log = $this->getLog();
         }
