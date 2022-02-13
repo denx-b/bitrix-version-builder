@@ -3,12 +3,13 @@
 
 include $_composer_autoload_path ?? __DIR__ . '/../vendor/autoload.php';
 
-echo '--- start ---' . PHP_EOL;
-
 try {
     $builder = new \VersionBuilder\Builder();
     $fileDetector = new \VersionBuilder\FileDetector($builder);
     $files = $fileDetector->getFiles();
+
+    echo 'Starting Version Builder work:' . PHP_EOL;
+    echo $fileDetector->getCommand() . PHP_EOL . PHP_EOL;
 } catch (\Exception $e) {
     exit($e->getMessage() . PHP_EOL);
 }
@@ -30,6 +31,7 @@ if ($zip->open($archiveName, ZipArchive::CREATE) !== true) {
     exit('Version Builder: Unable to open ' . $archiveName . PHP_EOL);
 }
 
+echo 'Files: ' . PHP_EOL;
 foreach ($files as $file) {
     // Создание директории версии
     $destDir = $directory . '/' . dirname($file['path']);
@@ -45,20 +47,21 @@ foreach ($files as $file) {
     file_put_contents($destFile, $content);
     // Добавляем файлы в архив
     if ($zip->addFile($destFile, $builder->getModuleVersion() . '/' . $file['path'])) {
-        echo 'Version Builder: added file ' . $file['path'] . PHP_EOL;
+        echo $file['path'] . PHP_EOL;
     }
 }
+
+echo PHP_EOL;
+echo 'Result: ' . PHP_EOL;
 
 $description = $builder->getDescriptionUpdate();
 $zip->addFromString($builder->getModuleVersion() . '/description.ru', iconv('UTF-8', 'CP1251', $description));
 if (!$zip->close()) {
     exit('Version Builder: Build version NOT created' . PHP_EOL);
 } else {
-    echo 'Version Builder: Archive created ' . $builder->getArchiveName() . PHP_EOL;
+    echo 'Version Builder: Archive created ' . $builder->getArchiveName() . ' successfully' . PHP_EOL;
 }
 
 \VersionBuilder\Helper::removeDirectory($directory);
-echo 'Version Builder: Build version created successfully ' . PHP_EOL;
 echo 'Version Builder: Time ' . round(microtime(true) - $_SERVER['REQUEST_TIME_FLOAT'], 6) . ' sec.' . PHP_EOL;
-
-echo '---- end ----' . PHP_EOL . PHP_EOL;
+echo PHP_EOL;

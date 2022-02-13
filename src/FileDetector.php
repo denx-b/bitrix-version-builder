@@ -10,6 +10,8 @@ class FileDetector
     /** @var Builder */
     protected $repository;
 
+    protected $command = 'git ls-files';
+
     /**
      * @param Builder $repository
      */
@@ -53,8 +55,9 @@ class FileDetector
         $arExcludeMask = $this->repository->getExcludeMask();
 
         /** @var File[] $files */
-        $argument = $older ? $older . '..' . $newer : $newer;
-        $diff = $this->repository->getDiff($argument);
+        $older = $older ?: $newer;
+        $this->command = 'git diff --name-only ' . $older . '^..' . $newer;
+        $diff = $this->repository->getDiff($older . '^..' . $newer);
         $files = $diff->getFiles();
 
         $arFiles = [];
@@ -110,5 +113,13 @@ class FileDetector
         }
 
         return $arFiles;
+    }
+
+    /**
+     * @return string
+     */
+    public function getCommand(): string
+    {
+        return $this->command;
     }
 }

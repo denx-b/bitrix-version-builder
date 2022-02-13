@@ -74,12 +74,16 @@ class Builder extends Repository
      */
     public function getHashes(): array
     {
+        /** @var String[] $arTags */
         $arTags = [];
         $refBag = new ReferenceBag($this);
         foreach ($refBag->getTags() as $tag) {
             /** @var Tag $tag */
-            $arTags[$tag->getTaggerDate()->format('U')] = $tag->getCommit()->getFixedShortHash();
+            $u = $tag->getLog()->getCommits()[0]->getAuthorDate()->format('U');
+            $arTags[$u] = $tag->getCommit()->getFixedShortHash();
         }
+
+        krsort($arTags);
 
         $newerTagHash = '';
         $olderTagHash = '';
@@ -87,7 +91,6 @@ class Builder extends Repository
             $newerTagHash = array_values($arTags)[0];
             $this->countTags = 1;
         } elseif (count($arTags) > 1) {
-            krsort($arTags);
             $newerTagHash = array_shift($arTags);
             $olderTagHash = array_shift($arTags);
             $this->countTags = 2;
@@ -97,14 +100,9 @@ class Builder extends Repository
             $this->setModuleVersion($newerTagHash);
             $this->setArchiveNameByVersion();
         }
-
-        if ($newerTagHash) {
-            $log = $this->getRevision($newerTagHash)->getLog();
-        } else {
-            $log = $this->getLog();
-        }
-
+        
         /** @var Commit[] $commits */
+        $log = $this->getLog();
         $commits = $log->getCommits();
         if (!$log->count()) {
             throw new Exception('Version Builder: Error there are no commits');
@@ -119,14 +117,30 @@ class Builder extends Repository
 
         $newer = $newerTagHash ?: $commits[0]->getFixedShortHash();
 
-        $prev = '';
-        $older = '';
+        $prev = $older = $found = '';
         foreach ($commits as $commit) {
+            /*
+             * Этим условием происходит выбор нужной ревизии
+             * Если выбирать ревизию через Repository::getRevision(), то теряются комиты исправленные через --amend
+             */
+            if ($newerTagHash && $commit->getFixedShortHash() !== $newerTagHash && !$found) {
+                $found = true;
+            }
+
+            /*
+             * Пустым значение $olderTagHash мы делаем вывод, что нет второго тега
+             * Отсюда принимается, решение, что самый older у нас – это последний комит в истории
+             */
             if (!$olderTagHash) {
                 $older = $commit->getFixedShortHash();
                 continue;
             }
 
+            /*
+             * Второй тег есть и older'ом должен выступить комит следующий за тегом
+             * Поэтому как только мы дошли до тега, то значением older выступает значение prev предыдущей итерации цикла
+             * И сразу можно прерывать цикл break;
+             */
             if ($commit->getFixedShortHash() === $olderTagHash) {
                 $older = $prev;
                 break;
