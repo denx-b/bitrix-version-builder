@@ -11,13 +11,15 @@ try {
     echo 'Starting Version Builder work:' . PHP_EOL;
     echo $fileDetector->getCommand() . PHP_EOL . PHP_EOL;
 } catch (\Exception $e) {
-    exit($e->getMessage() . PHP_EOL);
+    echo $e->getMessage() . PHP_EOL;
+    exit(1);
 }
 
 $directory = $builder->getPathDir() . '/' . $builder->getModuleVersion();
 if (!file_exists($directory)) {
     if (!mkdir($directory, 0755, true)) {
-        exit('Version Builder: Failed to create directory' . PHP_EOL);
+        echo 'Version Builder: Failed to create directory' . PHP_EOL;
+        exit(1);
     }
 }
 
@@ -28,7 +30,8 @@ if (file_exists($archiveName)) {
 
 $zip = new ZipArchive();
 if ($zip->open($archiveName, ZipArchive::CREATE) !== true) {
-    exit('Version Builder: Unable to open ' . $archiveName . PHP_EOL);
+    echo 'Version Builder: Unable to open ' . $archiveName . PHP_EOL;
+    exit(1);
 }
 
 echo 'Files: ' . PHP_EOL;
@@ -38,7 +41,8 @@ foreach ($files as $file) {
     $destFile = $directory . '/' . $file['path'];
     if (!file_exists($destDir)) {
         if (!mkdir($destDir, 0755, true)) {
-            exit('Version Builder: Failed to create directory ' . dirname($file['path']) . PHP_EOL);
+            echo 'Version Builder: Failed to create directory ' . dirname($file['path']) . PHP_EOL;
+            exit(1);
         }
     }
     // Копируем файлы
@@ -57,7 +61,8 @@ echo 'Result: ' . PHP_EOL;
 $description = $builder->getDescriptionUpdate();
 $zip->addFromString($builder->getModuleVersion() . '/description.ru', iconv('UTF-8', 'CP1251', $description));
 if (!$zip->close()) {
-    exit('Version Builder: Build version NOT created' . PHP_EOL);
+    echo 'Version Builder: Build version NOT created' . PHP_EOL;
+    exit(1);
 } else {
     echo 'Version Builder: Archive created ' . $builder->getArchiveName() . ' successfully' . PHP_EOL;
 }
