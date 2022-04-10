@@ -50,14 +50,28 @@ class Builder extends Repository
         if (++$i > 20) {
             throw new Exception('Version Builder: Error bitrix module not found');
         }
-        $path = $baseDir . '/..';
-        if (file_exists($path . '/install/version.php')) {
-            $dir = realpath($path);
-            if (!file_exists($dir . '/.git')) {
-                throw new Exception('Version Builder: Error git repository not found ' . $dir);
-            }
-            return $dir;
+
+        // Путь на уровень выше
+        $path = realpath($baseDir . '/..');
+
+        // Один из способов определения корня модуля по композеру с bitrix-version-builder
+        $composer = false;
+        if (file_exists($path . '/composer.json')) {
+            $composer = strpos(file_get_contents($path . '/composer.json'), 'bitrix-version-builder') !== false;
         }
+
+        // Второй способ – это наличие файла version.php
+        $version = file_exists($path . '/install/version.php');
+
+        // Но так как библиотека работает на основании истории версий, то обязательно наличие гита
+        if (($version || $composer) && !file_exists($path . '/src/Builder.php')) {
+            if (!file_exists($path . '/.git')) {
+                throw new Exception('Version Builder: Error git repository not found ' . $path);
+            }
+            return $path;
+        }
+
+        // Рекурсивная работа функции
         return $this->findModuleDir($path);
     }
 
