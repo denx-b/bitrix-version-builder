@@ -3,10 +3,14 @@
 
 include $_composer_autoload_path ?? __DIR__ . '/../vendor/autoload.php';
 
-use Symfony\Component\Console\Application;
+$application = new \Symfony\Component\Console\Application();
 
-$application = new Application();
-
+$application->add(new \VersionBuilder\Commands\CreateModule());
 $application->add(new \VersionBuilder\Commands\VersionBuild());
 
-$application->run();
+try {
+    $application->run();
+} catch (Exception $e) {
+    echo $e->getMessage() . PHP_EOL;
+    exit(1);
+}
