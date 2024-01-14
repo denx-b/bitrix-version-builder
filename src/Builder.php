@@ -293,7 +293,7 @@ class Builder extends Repository
      */
     public function getExcludeMask(): array
     {
-        return ['.last_version', '.versions', 'bitrix-version-builder', '.gitignore', 'vendor', 'composer'];
+        return ['.last_version', '.versions', 'bitrix-version-builder', '.gitignore', 'vendor', 'composer', '.DS_Store'];
     }
 
     /**

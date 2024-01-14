@@ -2,6 +2,8 @@
 
 use Bitrix\Main\Localization\Loc;
 
+Loc::loadMessages(dirname(__FILE__) . '/options.php');
+
 return [
     'edit1' => [
         'TAB_NAME' => Loc::getMessage('#MESS#_TAB'),
