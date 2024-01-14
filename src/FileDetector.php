@@ -67,7 +67,7 @@ class FileDetector
             }
             $arFiles[] = [
                 'path' => $fileDiff->getName(),
-                'content' => $fileDiff->getNewBlob()->getContent()
+                'content' => file_get_contents($this->repository->getPath() . '/' . $fileDiff->getName())
             ];
 
             if (strpos($fileDiff->getName(), 'install/version.php') !== false) {
