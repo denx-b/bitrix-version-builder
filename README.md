@@ -10,7 +10,7 @@
 ### Использование
 Установка библиотеки из composer:
 ```sh
-composer require denx-b/bitrix-version-builder --dev
+composer require denx-b/bitrix-version-builder
 ```
 
 Обязательно в корне модуля должен быть git:
@@ -18,14 +18,14 @@ composer require denx-b/bitrix-version-builder --dev
 git init
 ```
 
-Генерация базовой структуры модуля:
-```sh
-./vendor/bin/console bitrix:create-module
-```
-
-Сборка обновления:
+Сборка новой версии:
 ```sh
 ./vendor/bin/console bitrix:version-build
+```
+
+Создания базовой структуры модуля:
+```sh
+./vendor/bin/console bitrix:create-module
 ```
 
 В итоге структура модуля может выглядеть следующим образом:
