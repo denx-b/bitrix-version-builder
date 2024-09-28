@@ -75,7 +75,7 @@ $tabControl->Begin();
             } elseif ($arOption['type'] === 'message') {
                 ?><tr><td colspan="2" align="center"><div class="adm-info-message-wrap" align="center"><div class="adm-info-message"><?=$arOption['message']?></div></div></td></tr><?php
             } else {
-                $val = \Bitrix\Main\Config\Option::get($mid, $arOption['name'], $arOption['value']);
+                $val = \Bitrix\Main\Config\Option::get($mid, $arOption['name'], $arOption['value']) ?: $arOption['value'];
                 ?>
                 <tr>
                     <td width="50%" class="adm-detail-content-cell-l" nowrap<?= $arOption['type'] === 'textarea' ? ' class="adm-detail-valign-top"' : '' ?>>
