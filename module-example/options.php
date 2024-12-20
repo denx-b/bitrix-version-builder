@@ -25,7 +25,7 @@ $tabsConf = require __DIR__ . '/options_conf.php';
 $arTabs = $arAllOptions = [];
 foreach ($tabsConf as $key => $arTab) {
     $arTabs[] = ['DIV' => $key, 'TAB' => $arTab['TAB_NAME'], 'TITLE' => $arTab['TAB_TITLE'], 'ICON' => $arTab['ICON']];
-    $arAllOptions += $arTab['options'];
+    $arAllOptions = array_merge($arAllOptions, $arTab['options']);
 }
 
 // Объект табов
