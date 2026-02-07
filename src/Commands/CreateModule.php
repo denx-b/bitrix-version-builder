@@ -7,18 +7,17 @@ use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\Question;
-use VersionBuilder\Builder;
 
 class CreateModule extends Command
 {
     // the name of the command (the part after "bin/console")
     protected static $defaultName = 'bitrix:create-module';
 
-    /** @var Builder */
-    protected $builder;
-
     /** @var QuestionHelper */
     protected $questionHelper;
+
+    /** @var string */
+    protected $modulePath = '';
 
     protected $vendor = 'bitrix';
 
@@ -34,10 +33,10 @@ class CreateModule extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $this->builder = new Builder();
+        $this->modulePath = realpath(getcwd()) ?: getcwd();
         $this->questionHelper = $this->getHelper('question');
 
-        $dirName = preg_replace('/[_\-а-я\s+]/', '', basename($this->builder->getPath()));
+        $dirName = preg_replace('/[_\-а-я\s+]/', '', basename($this->modulePath));
         if (preg_match('/(\S+)\.(\S+)/', $dirName, $matches)) {
             $this->vendor = $matches[1];
             $this->module = $matches[2];
@@ -64,6 +63,8 @@ class CreateModule extends Command
         $question = new Question('Partner website address [' . $this->vendor . '.ru]: ', $this->vendor . '.ru');
         $this->partnerWebSite = $this->questionHelper->ask($input, $output, $question);
 
+        $this->ensureGitRepository($output);
+
         if ($this->getDirContents(__DIR__ . '/../../module-example') !== true) {
             $output->writeln('Check permissions. Module structure not created.');
             return Command::FAILURE;
@@ -84,7 +85,7 @@ class CreateModule extends Command
         foreach ($files as $value) {
             $path = realpath($dir . DIRECTORY_SEPARATOR . $value);
             $rp = realpath(__DIR__ . '/../../module-example/');
-            $np = str_replace($rp, $this->builder->getPath(), $path);
+            $np = str_replace($rp, $this->modulePath, $path);
             if (is_dir($path)) {
                 // Создание раздела
                 if ($value !== "." && $value !== "..") {
@@ -117,5 +118,39 @@ class CreateModule extends Command
             }
         }
         return true;
+    }
+
+    /**
+     * @param OutputInterface $output
+     * @return void
+     */
+    protected function ensureGitRepository(OutputInterface $output): void
+    {
+        if (file_exists($this->modulePath . '/.git')) {
+            return;
+        }
+
+        if (!$this->isGitAvailable()) {
+            $output->writeln('<comment>Warning: Git не найден в системе. Для корректной работы сборки версий нужен инициализированный git в корне модуля.</comment>');
+            return;
+        }
+
+        $command = 'git init ' . escapeshellarg($this->modulePath) . ' 2>&1';
+        exec($command, $commandOutput, $resultCode);
+        if ($resultCode !== 0) {
+            $output->writeln('<comment>Warning: Не удалось выполнить git init. Для корректной работы сборки версий нужен инициализированный git в корне модуля.</comment>');
+            return;
+        }
+
+        $output->writeln('Git repository initialized in module root.');
+    }
+
+    /**
+     * @return bool
+     */
+    protected function isGitAvailable(): bool
+    {
+        exec('git --version 2>&1', $commandOutput, $resultCode);
+        return $resultCode === 0;
     }
 }

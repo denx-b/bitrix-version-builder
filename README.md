@@ -13,16 +13,6 @@
 composer require denx-b/bitrix-version-builder
 ```
 
-Обязательно в корне модуля должен быть git:
-```sh
-git init
-```
-
-Сборка новой версии:
-```sh
-./vendor/bin/console bitrix:version-build
-```
-
 Создания базовой структуры модуля:
 ```sh
 ./vendor/bin/console bitrix:create-module
@@ -45,6 +35,16 @@ aspro.max/
   ├─ options.php
   └─ options_conf.php
 */
+```
+
+Сборка новой версии:
+```sh
+./vendor/bin/console bitrix:version-build
+```
+
+Для работы библиотеки, обязательно в корне модуля должен быть git:
+```sh
+git init
 ```
 
 Команда генерации `bitrix:create-module` после запуска задаст вам несколько вопросов, для генерации класса установки, кода модуля, название, описание модуля и так далее.
@@ -79,3 +79,20 @@ aspro.max/
 
 ### epilog_after.php
 Развивайте ваш модуль, комитьте, фокусируйтесь на задаче, а рутинную работу возложите на сборщик! Как будете готовы к публикации новой версии, сново просто выполните команду `./vendor/bin/console bitrix:version-build`
+
+### Короткие алиасы команд (опционально)
+Вы можете создать короткие алиасы основным командам через scripts в `composer.json` вашего модуля:
+```json
+{
+  "scripts": {
+    "bitrix:create-module": "@php vendor/bin/console bitrix:create-module",
+    "bitrix:version-build": "@php vendor/bin/console bitrix:version-build"
+  }
+}
+```
+
+После этого команды можно вызывать короче:
+```sh
+composer bitrix:create-module
+composer bitrix:version-build
+```
