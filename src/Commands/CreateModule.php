@@ -110,7 +110,7 @@ class CreateModule extends Command
                     'partner_uri' => $this->partnerWebSite
                 ];
                 $data = file_get_contents($path);
-                $data = str_replace(array_flip($arReplace), $arReplace, $data);
+                $data = str_replace(array_keys($arReplace), array_values($arReplace), $data);
                 if (file_put_contents($np, $data) === false) {
                     return false;
                 }
